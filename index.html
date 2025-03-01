@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Cá Nhân Hóa</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        .gradient-header {
+            background: linear-gradient(135deg, #6EE7B7 0%, #3B82F6 100%);
+        }
+        .card-style {
+            @apply bg-white rounded-3xl shadow-xl p-8;
+        }
+        .hidden-section {
+            display: none;
+        }
+        .login-bg {
+            background: linear-gradient(45deg, #E0F7FA, #BBDEFB);
+            animation: gradientBG 15s ease infinite;
+        }
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        .spinner {
+            display: none;
+            width: 24px;
+            height: 24px;
+            border: 4px solid #ffffff;
+            border-top: 4px solid #3B82F6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        #progressChart {
+            height: 300px !important;
+        }
+        .table-container {
+            overflow-x: auto;
+        }
+        .history-table {
+            min-width: 800px;
+        }
+        .checkbox-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen p-6">
+    <div class="max-w-5xl mx-auto bg-white rounded-3xl shadow-2xl overflow-hidden">
+        <header class="gradient-header p-10 text-center text-white rounded-t-3xl">
+            <h1 id="greeting" class="text-4xl font-bold">Chào Mr/Ms ...</h1>
+            <p class="text-lg mt-3">Theo dõi tiến trình và số đo của bạn với giao diện chuyên nghiệp</p>
+        </header>
+
+        <section class="p-6 card-style mt-6 text-center login-bg" id="loginSection">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4">Đăng Nhập</h2>
+            <div class="relative max-w-sm mx-auto">
+                <input id="phoneInput" type="text" placeholder="Nhập số điện thoại" class="w-full p-3 border rounded-lg mb-4 focus:ring-2 focus:ring-blue-400 transition duration-200" />
+            </div>
+            <div class="flex justify-center items-center">
+                <button id="loginButton" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-5 rounded-lg flex items-center">Đăng Nhập</button>
+                <div id="loginSpinner" class="spinner"></div>
+            </div>
+            <p id="loginMessage" class="text-red-500 mt-3"></p>
+            <p id="motivationQuote" class="text-gray-600 italic mt-4"></p>
+        </section>
+
+        <section id="dashboardSection" class="hidden-section">
+            <section class="p-6 card-style mt-6">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-4 text-center">Thông Tin Số Đo Mới Nhất</h2>
+                <div id="latestMeasurements" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6 text-center"></div>
+            </section>
+
+            <section class="p-6 card-style mt-6 text-center">
+                <button id="toggleHistoryButton" class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-2 px-5 rounded-lg mb-4">Xem Lịch Sử Số Đo</button>
+                <button id="toggleFormButton" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-5 rounded-lg">Thêm Số Đo Mới</button>
+            </section>
+
+            <section id="historySection" class="p-6 card-style mt-6 hidden-section">
+                <h2 class="text-2xl font-semibold text-gray-700 text-center mb-4">Lịch Sử Số Đo</h2>
+                <div class="checkbox-container" id="chartCheckboxes"></div>
+                <canvas id="progressChart" class="mb-6"></canvas>
+                <button id="exportPdfButton" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-5 rounded-lg mb-4">Xuất PDF</button>
+                <div class="table-container">
+                    <table class="w-full text-left border-collapse history-table">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="p-3 border-b">Ngày</th>
+                                <th class="p-3 border-b">Ngực</th>
+                                <th class="p-3 border-b">Eo</th>
+                                <th class="p-3 border-b">Hông</th>
+                                <th class="p-3 border-b">Mông</th>
+                                <th class="p-3 border-b">Đùi</th>
+                                <th class="p-3 border-b">Bắp tay</th>
+                                <th class="p-3 border-b">Bắp chân</th>
+                                <th class="p-3 border-b">Cổ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTable" class="text-gray-700"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="formSection" class="p-6 card-style mt-6 hidden-section">
+                <h2 class="text-2xl font-semibold text-gray-700 text-center mb-4">Thêm Số Đo Mới</h2>
+                <form id="addMeasurementForm" class="grid grid-cols-1 gap-4">
+                    <input type="number" placeholder="Vòng Ngực (cm)" id="nguc" class="p-3 border rounded-lg" required />
+                    <input type="number" placeholder="Vòng Eo (cm)" id="eo" class="p-3 border rounded-lg" required />
+                    <input type="number" placeholder="Vòng Hông (cm)" id="hong" class="p-3 border rounded-lg" required />
+                    <input type="number" placeholder="Vòng Mông (cm)" id="mong" class="p-3 border rounded-lg" required />
+                    <input type="number" placeholder="Vòng Đùi (cm)" id="dui" class="p-3 border rounded-lg" required />
+                    <input type="number" placeholder="Bắp Tay (cm)" id="bap_tay" class="p-3 border rounded-lg" required />
+                    <input type="number" placeholder="Bắp Chân (cm)" id="bap_chan" class="p-3 border rounded-lg" required />
+                    <input type="number" placeholder="Vòng Cổ (cm)" id="co" class="p-3 border rounded-lg" required />
+                    <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-5 rounded-lg">Gửi Số Đo</button>
+                </form>
+                <p id="formMessage" class="text-green-500 mt-3"></p>
+            </section>
+        </section>
+    </div>
+
+    <script>
+        const { jsPDF } = window.jspdf;
+        const API_URL = 'https://script.google.com/macros/s/AKfycbxRpeWQLoF-5i-E1aovbEN0d2XoHdfx7vjnbJ08dU1E3wDUykD-3D6X5iItqErbMdsx/exec'; // THAY URL THỰC TẾ TẠI ĐÂY
+        const loginButton = document.getElementById('loginButton');
+        const phoneInput = document.getElementById('phoneInput');
+        const loginMessage = document.getElementById('loginMessage');
+        const loginSection = document.getElementById('loginSection');
+        const dashboardSection = document.getElementById('dashboardSection');
+        const greetingElement = document.getElementById('greeting');
+        const historyTable = document.getElementById('historyTable');
+        const toggleHistoryButton = document.getElementById('toggleHistoryButton');
+        const historySection = document.getElementById('historySection');
+        const toggleFormButton = document.getElementById('toggleFormButton');
+        const formSection = document.getElementById('formSection');
+        const addMeasurementForm = document.getElementById('addMeasurementForm');
+        const formMessage = document.getElementById('formMessage');
+        const loginSpinner = document.getElementById('loginSpinner');
+        const motivationQuote = document.getElementById('motivationQuote');
+        const exportPdfButton = document.getElementById('exportPdfButton');
+        const chartCheckboxes = document.getElementById('chartCheckboxes');
+
+        let userPhone = '';
+        let userName = '';
+        let userMeasurements = [];
+        let progressChart = null;
+
+        const quotes = [
+            "Từng bước nhỏ hôm nay sẽ dẫn bạn đến những thành công lớn ngày mai.",
+            "Không có gì là không thể khi bạn tin vào chính mình.",
+            "Hành trình ngàn dặm bắt đầu từ một bước chân.",
+            "Mỗi ngày là một cơ hội để bạn trở thành phiên bản tốt hơn.",
+            "Sự kiên trì đánh bại mọi khó khăn."
+        ];
+
+        motivationQuote.textContent = quotes[Math.floor(Math.random() * quotes.length)];
+
+        const measurementKeys = [
+            { label: 'Ngực', key: 'Ngực', color: '#EF4444', checked: true },
+            { label: 'Eo', key: 'Eo', color: '#F97316', checked: true },
+            { label: 'Hông', key: 'Hông', color: '#FACC15', checked: true },
+            { label: 'Mông', key: 'Mông', color: '#22C55E', checked: false },
+            { label: 'Đùi', key: 'Đùi', color: '#14B8A6', checked: false },
+            { label: 'Bắp tay', key: 'Bắp tay', color: '#3B82F6', checked: false },
+            { label: 'Bắp chân', key: 'Bắp chân', color: '#8B5CF6', checked: false },
+            { label: 'Cổ', key: 'Cổ', color: '#EC4899', checked: false }
+        ];
+
+        async function fetchUserInfo(phone) {
+            try {
+                loginSpinner.style.display = 'block';
+                loginButton.disabled = true;
+                const response = await fetch(`${API_URL}?sheet=info`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+
+                if (data.status === 'error') {
+                    loginMessage.textContent = data.message;
+                    return;
+                }
+
+                let userData = Array.isArray(data) ? data : [data];
+                const userInfo = userData.find(item => String(item.SDT) === phone);
+
+                if (userInfo) {
+                    userName = userInfo['Tên Hội Viên'];
+                    greetingElement.textContent = `Chào Mr/Ms ${userName}`;
+                    loginSection.classList.add('hidden-section');
+                    dashboardSection.classList.remove('hidden-section');
+                    fetchUserData(phone);
+                } else {
+                    loginMessage.textContent = 'Số điện thoại không tồn tại. Vui lòng thử lại!';
+                }
+            } catch (error) {
+                loginMessage.textContent = 'Lỗi khi kết nối dữ liệu. Vui lòng thử lại sau!';
+                console.error('Lỗi fetchUserInfo:', error);
+            } finally {
+                loginSpinner.style.display = 'none';
+                loginButton.disabled = false;
+            }
+        }
+
+        async function fetchUserData(phone) {
+            try {
+                const response = await fetch(`${API_URL}?sheet=Measurements`);
+                const data = await response.json();
+                userMeasurements = data.filter(item => String(item.sdt) === phone);
+                renderUserData();
+            } catch (error) {
+                console.error('Lỗi fetchUserData:', error);
+            }
+        }
+
+        function renderUserData() {
+            const latestContainer = document.getElementById('latestMeasurements');
+            latestContainer.innerHTML = '';
+            if (userMeasurements.length === 0) {
+                latestContainer.innerHTML = '<p>Chưa có dữ liệu số đo.</p>';
+                return;
+            }
+
+            const latest = userMeasurements[userMeasurements.length - 1];
+            Object.entries(latest).forEach(([key, value]) => {
+                if (key !== 'sdt' && key !== 'Ngày') {
+                    latestContainer.innerHTML += `
+                        <div class="bg-gray-100 rounded-xl p-4 shadow">
+                            <p class="font-semibold text-gray-600">${key}</p>
+                            <p class="text-2xl text-gray-800">${value} cm</p>
+                        </div>`;
+                }
+            });
+            renderHistory();
+        }
+
+        function renderChartCheckboxes() {
+            chartCheckboxes.innerHTML = '';
+            measurementKeys.forEach((item, index) => {
+                const checkbox = document.createElement('label');
+                checkbox.innerHTML = `
+                    <input type="checkbox" id="checkbox-${index}" ${item.checked ? 'checked' : ''}>
+                    <span class="ml-1 text-gray-700">${item.label}</span>
+                `;
+                chartCheckboxes.appendChild(checkbox);
+                checkbox.querySelector('input').addEventListener('change', () => updateChart());
+            });
+        }
+
+        function updateChart() {
+            const ctx = document.getElementById('progressChart').getContext('2d');
+            const labels = userMeasurements.map(entry => new Date(entry['Ngày']).toLocaleDateString());
+            const datasets = measurementKeys.map((item, index) => ({
+                label: item.label,
+                data: userMeasurements.map(entry => entry[item.key]),
+                borderColor: item.color,
+                fill: false,
+                hidden: !document.getElementById(`checkbox-${index}`).checked
+            }));
+
+            if (progressChart) {
+                progressChart.destroy();
+            }
+
+            progressChart = new Chart(ctx, {
+                type: 'line',
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { title: { display: true, text: 'Ngày' } },
+                        y: { title: { display: true, text: 'Số đo (cm)' }, beginAtZero: false }
+                    },
+                    plugins: {
+                        legend: { position: 'top', labels: { boxWidth: 20, padding: 10 } },
+                        title: { display: true, text: 'Tiến Trình Số Đo Qua Thời Gian', font: { size: 16 } }
+                    }
+                }
+            });
+        }
+
+        function renderHistory() {
+            historyTable.innerHTML = userMeasurements.map(entry => `
+                <tr>
+                    <td class="p-3 border-b">${new Date(entry['Ngày']).toLocaleString()}</td>
+                    <td class="p-3 border-b">${entry['Ngực']} cm</td>
+                    <td class="p-3 border-b">${entry['Eo']} cm</td>
+                    <td class="p-3 border-b">${entry['Hông']} cm</td>
+                    <td class="p-3 border-b">${entry['Mông']} cm</td>
+                    <td class="p-3 border-b">${entry['Đùi']} cm</td>
+                    <td class="p-3 border-b">${entry['Bắp tay']} cm</td>
+                    <td class="p-3 border-b">${entry['Bắp chân']} cm</td>
+                    <td class="p-3 border-b">${entry['Cổ']} cm</td>
+                </tr>`).join('');
+
+            renderChartCheckboxes();
+            updateChart();
+        }
+
+        function exportToPDF() {
+            if (userMeasurements.length === 0) {
+                alert('Không có dữ liệu để xuất ra PDF!');
+                return;
+            }
+            try {
+                const doc = new jsPDF();
+                const currentDate = new Date().toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                const title = `Lịch Sử Số Đo - ${userName} (${currentDate})`;
+
+                // Thêm tiêu đề
+                doc.setFontSize(20);
+                doc.setFont('Helvetica', 'bold');
+                doc.text(title, 20, 20);
+
+                // Tạo bảng dữ liệu
+                const tableData = userMeasurements.map(entry => [
+                    new Date(entry['Ngày']).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                    `${entry['Ngực']} cm`,
+                    `${entry['Eo']} cm`,
+                    `${entry['Hông']} cm`,
+                    `${entry['Mông']} cm`,
+                    `${entry['Đùi']} cm`,
+                    `${entry['Bắp tay']} cm`,
+                    `${entry['Bắp chân']} cm`,
+                    `${entry['Cổ']} cm`
+                ]);
+
+                doc.autoTable({
+                    startY: 30,
+                    head: [['Ngày', 'Ngực', 'Eo', 'Hông', 'Mông', 'Đùi', 'Bắp tay', 'Bắp chân', 'Cổ']],
+                    body: tableData,
+                    theme: 'grid',
+                    styles: { fontSize: 12, font: 'Helvetica', cellPadding: 2, halign: 'center', valign: 'middle' },
+                    headStyles: { fillColor: [59, 130, 246], fontSize: 14, fontStyle: 'bold' },
+                    columnStyles: { 0: { cellWidth: 40 } }
+                });
+
+                // Lưu file
+                doc.save(`LichSuSoDo_${userName}_${currentDate}.pdf`);
+            } catch (error) {
+                console.error('Lỗi khi xuất PDF:', error);
+                alert('Có lỗi xảy ra khi xuất PDF. Vui lòng thử lại!');
+            }
+        }
+
+        toggleHistoryButton.addEventListener('click', () => {
+            historySection.classList.toggle('hidden-section');
+            if (!historySection.classList.contains('hidden-section')) {
+                renderHistory();
+            }
+        });
+
+        toggleFormButton.addEventListener('click', () => {
+            formSection.classList.toggle('hidden-section');
+        });
+
+        exportPdfButton.addEventListener('click', exportToPDF);
+
+        addMeasurementForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const newMeasurement = {
+                sdt: userPhone,
+                nguc: document.getElementById('nguc').value,
+                eo: document.getElementById('eo').value,
+                hong: document.getElementById('hong').value,
+                mong: document.getElementById('mong').value,
+                dui: document.getElementById('dui').value,
+                bap_tay: document.getElementById('bap_tay').value,
+                bap_chan: document.getElementById('bap_chan').value,
+                co: document.getElementById('co').value
+            };
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newMeasurement)
+                });
+                formMessage.textContent = 'Đang lưu số đo...';
+                await fetchUserData(userPhone);
+                formMessage.textContent = 'Số đo đã được lưu thành công!';
+                addMeasurementForm.reset();
+            } catch (error) {
+                console.error('Lỗi khi gửi dữ liệu:', error);
+                formMessage.textContent = 'Lỗi khi lưu số đo. Vui lòng thử lại!';
+            }
+        });
+
+        loginButton.addEventListener('click', () => {
+            userPhone = phoneInput.value.trim();
+            if (userPhone) {
+                loginMessage.textContent = '';
+                fetchUserInfo(userPhone);
+            } else {
+                loginMessage.textContent = 'Vui lòng nhập số điện thoại.';
+            }
+        });
+    </script>
+</body>
+</html>
